@@ -1,0 +1,471 @@
+#NAME : MOHAMMAD AMAN ZARGAR
+#NSID : MAZ423.
+#STUDENT ID: 11265940.             
+                            
+                                          
+              .data
+              
+Tree:         .space 300 
+
+prompt:       .asciiz "Enter the operation :\n"
+
+prompt1:      .asciiz "\nEnter the int value of the node :\n"
+
+prompt2:      .asciiz "\nEnter Y if nodes from statically defined tree should be printed: \n "
+
+prompt3:      .asciiz "\nDynamic tree in ascending order is: \n"
+
+prompt4:      .asciiz "\nStatic tree in ascending order is: \n"
+
+Str:          .asciiz "IDR\nY"
+
+newl:             .asciiz "\n"
+
+rootdynamic:  .word 0 
+
+
+freelist:     .word 0
+
+rootstatic:   .word rootnode
+
+rootnode:     .word lchild
+              .word 28
+              .word rchild
+              
+lchild:       .word 0
+              .word 6
+              .word 0
+              
+rchild:       .word rchildlchild      
+              .word 8128
+              .word rchildrchild
+              
+rchildlchild: .word 0  
+              .word 496
+              .word 0
+              
+rchildrchild: .word 0
+              .word 33550336
+              .word 0
+
+              .text  
+              
+main:         la $a0,Tree
+              la $a1,25
+              jal init
+              sw $v0,freelist
+              
+              
+repeat:        li $v0,4                #print Prompt to ask for operation.
+               la $a0,prompt
+                  
+               syscall
+               
+               li $v0,12              #read char for operation.
+                  
+               syscall
+               
+               move $s1,$v0           #$s1 has the char that indicates the operation type.
+               
+               la $a0,freelist
+               
+               la $a2,rootdynamic
+               
+               la $s2,Str
+               
+               lb $s3,0($s2)                  # load I
+               lb $s4,1($s2)                  #   "   D
+               
+               beq $s1,$s3,insertnode
+               beq $s1,$s4,removenode 
+                      
+               #if input is neither I or D
+               li $v0,4                       #Ask to print Static tree if user enters Y.
+               la $a0,prompt2
+                  
+               syscall
+               
+               li $v0,12                      #read char to print tree
+                  
+               syscall
+               
+               move $s5,$v0                   
+               
+               lb $s6,4($s2)                  #$s6 contains Y.
+               
+               bne $s5,$s6,printdtree         #if user did not enter Y print dynamic tree.
+               
+               li $v0,4                       #print Prompt.
+               la $a0,prompt4
+                  
+               syscall
+               
+               la $a1,rootnode
+               
+               jal print
+               
+               
+exit:          li $v0,10            #exit
+               syscall
+                 
+               
+printdtree:     li $v0,4                       #print Prompt.
+                la $a0,prompt3
+                  
+                syscall
+                la $a1,rootdynamic
+                lw $a1, 0($a1)
+                jal print                     #print dynamic tree
+                j exit                                                                                                                                    
+                                              
+                
+               
+insertnode:    li $v0,4                       #Ask user for int to add.
+               la $a0,prompt1
+                  
+               syscall
+
+               li $v0,5                       #read int value to insert.
+                  
+               syscall
+                  
+               la $a0, freelist
+                  
+               move $a1,$v0 
+               
+               la $a2,rootdynamic
+               
+               jal insert                    #call insert procedure.
+               
+               j repeat                      #after node is inserted repeat.
+
+
+removenode:    li $v0,4                      #print Prompt1.
+               la $a0,prompt1
+                  
+               syscall
+
+               li $v0,5                      #read int value
+                  
+               syscall
+                  
+               la $a0, freelist
+               
+               la $a2, rootdynamic
+                  
+               move $a1,$v0 
+               
+               jal delete                    #call delete procedure.
+               
+               j repeat                      #after removal.
+
+                                                                              
+                                                                
+               #$a1: memory address of root node  . 
+                                                                                                         
+print:         bne $a1,$zero,recurse          #base case , if root node is null, return
+               jr $ra
+               
+               
+               
+               
+recurse:       addi $sp,$sp,-12               #set up stack
+               sw $ra , 8($sp)                #save return address
+               sw $a1, 4($sp)                 #save param of  call.
+               
+               lw $a1, 0($a1)                 #a1 has address of left child.
+               
+               jal print                      #traverse through left child.
+               
+               lw $a1 , 4($sp)                #load #a1 to prev function call
+               
+               
+               
+               li $v0 , 1                     #print node.
+               lw $a0, 4($a1)
+               syscall
+               
+               li $v0,11                      #print space in between nodes
+               li $a0,32
+               syscall
+               
+               sw $a1, 4($sp)
+               lw $a1, 8($a1)                #a1 has address of Right child.
+               
+               jal print
+               
+               
+               lw $ra, 8($sp)                #load back return val of first call
+               
+               addiu $sp,$sp,12              #free stack
+               
+               jr $ra
+               
+               
+               #$a1 integer to be inserted 
+               #$a2 word containg memory address of the root node
+               #$a0 word containing memory address of the first word in free list.
+                 
+insert:        lw $t0,0($a2)             #load root node
+              
+               bne $t0,$zero,recurse1    #if not base case recurse
+
+               addiu $sp,$sp,-8          # set up stack to store return value 
+               sw $ra ,0($sp)
+               sw $t0 ,4($sp)
+               jal alloc                 # call alloc to get a node.
+               lw $t0 ,4($sp)           
+               lw $ra,0($sp)             # load return address back to $ra.
+               addiu $sp,$sp,8           # free stack  
+               
+               bne $v0,$zero,next        #if free list is empty. return 1
+               li $v0,1 
+               jr $ra  
+               
+next:          sw $a1,4($v0)             #save int value in node.
+               
+               sw $v0,0($a2)             #new node is now the root node.
+               
+               jr $ra
+               
+              
+               
+recurse1:      addiu $sp,$sp -12           #set up stack.
+               sw $ra , 8($sp)             #save return val.
+               sw $a2,  4($sp)             #save val $a2 .
+               
+
+               lw $t1,4($t0)               #load value of node to compare.
+               
+
+               blt $a1,$t1,insertleft       #if val is less than root traverse left.
+               bgt $a1,$t1,insertright      #if val is greater than root traverse right.
+               li $v0,0                     #if val to insert is already there . return
+               j return
+                 
+               
+insertleft:    la $a2,0($t0)                #go left
+               jal insert 
+               
+               lw $ra,8($sp)                
+               addiu $sp,$sp,12
+               jr $ra
+               
+               
+               
+insertright:   la $a2,8($t0)                #go right
+               jal insert
+               
+               lw $ra,8($sp)                
+               addiu $sp,$sp,12
+               jr $ra
+               
+return:        jr $ra
+
+
+
+
+              #a1 int value to be deleted.
+              #a2 address of a word that contains the address of the root of the tree. 
+              #a0 address of a word that contains the address of the first node in the free list.
+
+delete:       lw $t0,0($a2)                   #load root node  
+              beq $t0,$zero,notfound          #if item not found return.
+              lw $t1,4($t0)                   #load value of node in $t1
+              bne $t1,$a1,rec                 #if target val not found recurse.
+              
+              
+              lw $t3,8($t0)                 #check how many child nodes does the node have.  
+              beq $t3,$zero,check           #if right child is zero, check for left. 
+              lw $t4,0($t0)                 #if right child exists , check for left child.
+              beq $t4,$zero,onechildR       #if left child exists , node has two children
+              
+twochildren:  lw $t8,0($t3)
+              beq $t8,$zero,rsuccesor       #if no left child of right child exists, go to onechildR
+                            
+              
+loopp:        move $t9,$t3                  #loop till you find the inorder succesor
+              move $t3,$t8
+              lw $t8,0($t8)
+              bne $t8,$zero,loopp
+skipp:        lw $t7,4($t3)                 #inorder succesor is found . 
+              sw $t7,4($t0)                 #switch values between the succesor and node to be deleted.
+              lw $t6,8($t3)
+              
+              bne $t6,$zero,setsuccR     #if inorder succesor has a left branch , attach that to the node that now has the inorder succesor val
+              sw $zero,0($t9)               #unlink inorder succesor.
+              
+              
+              
+              
+setsuccR:     sw $t6,0($t9)
+              j freee
+              
+              
+rsuccesor:    lw $t1,4($t3)                #if right child is the succesor . ie right child has no left child.
+              sw $t1,4($t0)
+              lw $t2,8($t3)                
+              sw $t2,8($t0)
+              j freee
+              jr $ra          
+              
+
+ 
+  
+onechildR:    lw $t5,4($t3)                #the one child is the succeror , copy its value to the node to delete.    
+              sw $t5,4($t0)
+              lw $t6,8($t3)                
+              lw $t7,0($t3)
+              sw $t6,8($t0)                #attach left and right subtrees of succesor to new node.
+              sw $t7,0($t0)
+              j freee
+              jr $ra
+
+onechildL:    lw $t5,4($t3)               #if only left child exists , it is is succesor  
+              
+              sw $t5,4($t0)               #copy its value to the node to be deleted.
+              
+              lw $t6,8($t3)               
+              
+              lw $t7,0($t3)
+              sw $t6,8($t0)               #attach left and right subtrees of succesor to new node.
+              sw $t6,0($t0)
+              
+              j freee
+              jr $ra
+                        
+              
+                        
+freee:        addiu $sp,$sp,-12           #add succesor to the freelist 
+              sw $a1,0($sp)
+              sw $t0,4($sp)
+              sw $ra,8($sp)
+              
+              move $a1,$t3
+              jal free                    #call procedure free.
+              lw $a1,0($sp)
+              lw $t0,4($sp)
+              lw $ra,8($sp)
+              addiu $sp,$sp 12
+              
+              jr $ra                      #return
+              
+             
+                
+ 
+check:        lw $t3,0($t0)                  #if left is not 0 , node has a left child.
+              bne $t3,$zero,onechildL        #if left is 0 ,node has no children 
+
+nochildren:   addiu $sp,$sp,-12              #if the node has no children set it to null 
+              sw $a1,0($sp)
+              sw $ra,4($sp)
+              sw $t0,8($sp)
+              move $a1,$t0 
+              jal free
+              lw $a1,0($sp)
+              lw $ra,4($sp) 
+              lw $t0,8($sp)
+              sw $zero,0($a2)
+              addiu $sp,$sp,12
+              jr $ra
+              
+
+                           
+notfound:     jr $ra                      #if node to delete is not found return.
+              
+rec:          addiu $sp,$sp -12           #set up stack.
+              sw $ra , 8($sp)             #save return val.
+              sw $a2,  4($sp)             #save val $a2 .
+               
+
+              lw $t2,4($t0)               #load value of node to compare.
+               
+
+              blt $a1,$t2,deleteleft       #if val is less than root traverse left.
+              bgt $a1,$t2,deleteright      #if val is greater than root traverse right. 
+              
+             
+             
+deleteleft:   sw $t0,0($sp)               #recursively delete left if node is not target node.
+              la $a2,0($t0)
+              jal delete
+              lw $ra , 8($sp)
+              
+              beq $t0,$zero,skipdell
+              
+skipdell:     addiu $sp,$sp,12  
+              jr $ra
+
+
+deleteright:  sw $t0,0($sp)              #recursively delete right if node is not target node.
+              la $a2,8($t0)
+              jal delete
+              lw $ra , 8($sp)
+              beq $t0,$zero,skipdelr
+              
+skipdelr:     addiu $sp,$sp,12  
+              jr $ra
+
+
+
+	# procedure init initializes the free list
+        	# procedure arguments as follows:
+        	#   $a0 - address of block of memory to be used for free list
+        	#   $a1 - desired size of free list (number of nodes)
+        	# procedure returns pointer to first node in free list
+init:	  	move $v0,$a0
+	  	blez $a1,init_r
+init_l:   	                sw $zero,0($a0)
+	  	sw $zero,4($a0)
+	  	addi $a0,$a0,12
+	  	sw $a0,-4($a0)
+	  	addi $a1,$a1,-1
+	  	bne $zero,$a1,init_l
+	  	sw $zero,-4($a0)
+init_r:   	                jr $ra
+
+
+
+                # procedure alloc gets a node from the free list
+        	# procedure argument as follows:
+        	#   $a0 - address of word containing the address of the first node in free list
+        	# procedure returns pointer to unlinked node
+alloc:		lw $v0,0($a0)
+	  	beq $v0,$zero,alloc_r  	#if free list is empty, return 0
+	 	lw $t0,8($v0)
+	  	sw $t0,0($a0)
+	  	sw $zero,8($v0)
+alloc_r:  	                jr $ra
+
+
+
+
+		# procedure free returns a node to the free list
+        	# procedure arguments as follows:
+        	#   $a0 - address of word containing the address of the first node in free list
+		#   $a1 - address of node that should be added to free list
+free:		lw $t0,0($a0)
+	  	sw $a1,0($a0)
+	  	sw $t0,8($a1)
+	  	sw $zero,4($a1)
+	  	sw $zero,0($a1)
+	  	jr $ra
+
+              
+               
+               
+                    
+               
+                                                           
+              
+               
+               
+                
+               
+               
+               
+               
+               
+               
+               
+   
